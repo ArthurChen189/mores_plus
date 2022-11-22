@@ -14,7 +14,7 @@ from tqdm import tqdm
 parser = ArgumentParser()
 parser.add_argument('--tokenizer_name', required=True)
 parser.add_argument('--rank_file', required=True)
-parser.add_argument('--truncate', type=int, default=512)
+parser.add_argument('--truncate', type=int, default=None)
 
 parser.add_argument('--sample_from_top', type=int, required=True)
 parser.add_argument('--n_sample', type=int, default=100)
@@ -46,7 +46,7 @@ rankings = defaultdict(list)
 no_judge = set()
 with open(args.rank_file) as f:
     for l in f:
-        qid, pid, rank = l.split()
+        qid, _,pid, rank,_,_ = l.split()
         if qid not in qrel:
             no_judge.add(qid)
             continue
@@ -103,12 +103,13 @@ with open(out_file, 'w') as f:
             item = collection[idx]
             did, url, title, body = (item[k] for k in columns)
             url, title, body = map(lambda v: v if v else '', [url, title, body])
-            encoded_neg = tokenizer.encode(
-                url + tokenizer.sep_token + title + tokenizer.sep_token + body,
+            encoded_neg = url + tokenizer.sep_token + title + tokenizer.sep_token + body
+            encoded_neg = encoded_neg.split()
+            encoded_neg = [" ".join(encoded_neg[i:i+512]) for i in range(0,8*512,512)]
+            encoded_neg = [tokenizer.encode(
+                one_chunk,
                 add_special_tokens=False,
-                max_length=args.truncate,
-                truncation=True
-            )
+                truncation=False)for one_chunk in encoded_neg]
             neg_encoded.append({
                 'passage': encoded_neg,
                 'pid': neg,
@@ -119,12 +120,13 @@ with open(out_file, 'w') as f:
             item = collection[idx]
             did, url, title, body = (item[k] for k in columns)
             url, title, body = map(lambda v: v if v else '', [url, title, body])
-            encoded_pos = tokenizer.encode(
-                url + tokenizer.sep_token + title + tokenizer.sep_token + body,
+            encoded_pos = url + tokenizer.sep_token + title + tokenizer.sep_token + body
+            encoded_pos = encoded_pos.split()
+            encoded_pos = [" ".join(encoded_pos[i:i+512]) for i in range(0,8*512,512)]
+            encoded_pos = [tokenizer.encode(
+                one_chunk,
                 add_special_tokens=False,
-                max_length=args.truncate,
-                truncation=True
-            )
+                truncation=True) for one_chunk in encoded_pos]
             pos_encoded.append({
                 'passage': encoded_pos,
                 'pid': pos,
